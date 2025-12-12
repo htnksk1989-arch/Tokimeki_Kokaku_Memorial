@@ -28,6 +28,28 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    /* === ★新規追加: ローディング画面 === */
+    #loading-screen {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: #000;
+      z-index: 9999; /* 他の全ての要素より手前に */
+      display: flex; justify-content: center; align-items: center;
+      transition: opacity 0.8s ease-out; /* フェードアウト効果 */
+    }
+    .loading-text {
+      font-family: 'Press Start 2P', sans-serif;
+      color: var(--accent);
+      font-size: clamp(1.5rem, 4vw, 2.5rem); /* 画面サイズに合わせて調整 */
+      text-shadow: 2px 2px 0 var(--bad-color);
+      animation: blink 0.8s infinite alternate;
+    }
+    /* 読み込み完了後に適用して隠すクラス */
+    .loaded {
+      opacity: 0;
+      pointer-events: none; /* クリック等を受け付けなくする */
+    }
+
     #screen-container {
       position: relative;
       width: 100%;
@@ -55,7 +77,6 @@
       #message-box { height: 200px !important; padding: 15px !important; }
       #text-content { font-size: 1.1rem !important; }
       .choice-btn { width: 95% !important; padding: 15px !important; font-size: 1rem !important; }
-      /* スマホではコンボ表示の位置を少し調整 */
       #combo-indicator { top: 10px !important; right: 10px !important; font-size: 1rem !important; }
     }
 
@@ -150,15 +171,12 @@
     .roll-animation { animation: credit-scroll 15s linear forwards; }
     @keyframes credit-scroll { 0% { top: 100%; } 100% { top: -120%; } }
 
-    /* === コンボ表示 (修正後) === */
     #combo-indicator {
       position: absolute; top: 20px; right: 20px;
       font-family: 'Press Start 2P'; 
-      font-size: 1.2rem; /* サイズを大きく */
-      color: #fff;       /* はっきり見えるように白 */
-      text-shadow: 2px 2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, -2px -2px 0 #000; /* 縁取り */
-      pointer-events: none;
-      z-index: 10;
+      font-size: 1.2rem; color: #fff;
+      text-shadow: 2px 2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, -2px -2px 0 #000;
+      pointer-events: none; z-index: 10;
     }
 
     /* アニメーション */
@@ -171,6 +189,10 @@
   </style>
 </head>
 <body>
+
+<div id="loading-screen">
+  <div class="loading-text">NOW LOADING...🦀</div>
+</div>
 
 <div id="screen-container">
   <div id="title-screen" class="screen-layer active">
@@ -294,7 +316,7 @@
       ]
     },
     "q1_fail": {
-      text: "「フン、アタシ忙しいから。」\n（彼女は不機嫌そうだ…）",
+      text: "「フン、ありきたりな反応ね。アタシ忙しいから。」\n（彼女は不機嫌そうだ…）",
       name: "カニ子",
       img: "kani_angry.png",
       next: "scene2_start"
@@ -316,7 +338,7 @@
       next: "scene2_talk"
     },
     "scene2_talk": {
-      text: "「…別に。…ううん。ちょっと、日差しが強すぎて…」",
+      text: "「…別に。光合成してるだけよ。…嘘。ちょっと、日差しが強すぎて…」",
       name: "カニ子",
       img: "kani_sad.png", 
       next: "q2_choice"
@@ -335,7 +357,7 @@
       next: "scene_search_start"
     },
     "q2_success": {
-      text: "シュッシュッ…\n「！？ …な、何よイキナリ！ ……でも、ちょっと…潤ったかも。…ありがと」",
+      text: "シュッシュッ…\n「ひゃうっ！？ …な、何よイキナリ！ ……でも、ちょっと…潤ったかも。…ありがと」",
       name: "カニ子",
       img: "kani_shy.png",
       emotion: "shy_anim",
@@ -550,7 +572,8 @@
     choicesContainer: document.getElementById('choices-container'),
     comboCount: document.getElementById('combo-count'),
     creditScreen: document.getElementById('credit-screen'),
-    creditContent: document.getElementById('credit-content')
+    creditContent: document.getElementById('credit-content'),
+    loadingScreen: document.getElementById('loading-screen')
   };
 
   let currentSceneId = null;
@@ -564,6 +587,17 @@
     els.startBtn.addEventListener('click', startGame);
     els.creditScreen.addEventListener('click', () => {
         if(els.creditScreen.classList.contains('active')) returnToTitle();
+    });
+
+    // ★新規追加: ロード完了検知イベント
+    // すべてのリソース（画像、音声、フォント等）の読み込みが完了したら実行
+    window.addEventListener('load', () => {
+        // 念のため少し待ってからフェードアウトさせる（演出）
+        setTimeout(() => {
+            if (els.loadingScreen) {
+                els.loadingScreen.classList.add('loaded');
+            }
+        }, 800); // 0.8秒待機
     });
   }
 
