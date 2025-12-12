@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ときめき甲殻メモリアル HC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --box-color: rgba(0, 0, 80, 0.9);
+      --accent: #ffeb3b;
+      --bad-color: #b71c1c;
+    }
+
+    body {
+      margin: 0;
+      background: #222;
+      height: 100dvh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      font-family: 'DotGothic16', sans-serif;
+      color: #fff;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #screen-container {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 4 / 3;
+      background: #000;
+      border-radius: 4px;
+      box-shadow: 0 0 0 10px #111;
+      overflow: hidden;
+    }
+
+    @media (max-width: 600px) {
+      body { background: #000; }
+      #screen-container {
+        max-width: 100%; height: 100dvh; aspect-ratio: auto; border-radius: 0; box-shadow: none;
+      }
+
+      #title-screen {
+        background-size: contain !important;
+        background-repeat: no-repeat !important;
+        background-color: #000 !important;
+      }
+
+      #character-area { bottom: 210px !important; height: 55% !important; }
+      #message-box { height: 200px !important; padding: 15px !important; }
+      #text-content { font-size: 1.1rem !important; }
+      .choice-btn { width: 95% !important; padding: 15px !important; font-size: 1rem !important; }
+      /* スマホではコンボ表示の位置を少し調整 */
+      #combo-indicator { top: 10px !important; right: 10px !important; font-size: 1rem !important; }
+    }
+
+    .screen-layer {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; transition: opacity 0.5s;
+    }
+    .hidden { opacity: 0; pointer-events: none; z-index: 0; }
+    .active { opacity: 1; z-index: 5; }
+
+    #game-screen {
+      background-color: #000; background-size: cover; background-position: center;
+      justify-content: flex-end; image-rendering: pixelated; 
+    }
+    .bg-school    { background-image: url('school_dusk.png'); }
+    .bg-rooftop   { background-image: url('rooftop.png'); }
+    .bg-corridor  { background-image: url('corridor.png'); }
+    .bg-classroom { background-image: url('classroom_dark.png'); }
+
+    #character-area {
+      position: absolute; bottom: 180px; left: 50%; transform: translateX(-50%);
+      height: 65%; width: auto; pointer-events: none;
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    #char-img {
+      height: 100%; width: auto; display: none; transition: transform 0.2s;
+    }
+
+    .angry_anim { animation: shake_char 0.2s infinite; }
+    .shy_anim   { }
+    .molted_anim { }
+
+    #message-box {
+      position: relative; width: 94%; height: 180px;
+      background: var(--box-color); border: 4px solid #fff; border-radius: 8px;
+      margin-bottom: 20px; padding: 20px; box-sizing: border-box;
+      display: flex; flex-direction: column; align-self: center;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    }
+    #name-label {
+      color: var(--accent); font-size: 1.3rem; font-weight: bold; margin-bottom: 10px;
+      text-shadow: 2px 2px 0 #000; background: rgba(0,0,0,0.3);
+      display: inline-block; padding: 2px 10px; border-radius: 4px; align-self: flex-start;
+    }
+    #text-content { font-size: 1.2rem; line-height: 1.6; flex: 1; white-space: pre-wrap; }
+    .next-indicator {
+      position: absolute; bottom: 15px; right: 20px; 
+      color: var(--accent); font-size: 1.5rem; animation: blink 1s infinite; display: none;
+    }
+
+    #choices-container {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7); display: none;
+      flex-direction: column; justify-content: center; align-items: center; gap: 20px; z-index: 20;
+    }
+    .choice-btn {
+      background: #000; border: 2px solid var(--accent); color: var(--accent);
+      padding: 18px 30px; font-size: 1.1rem; font-family: 'DotGothic16';
+      cursor: pointer; width: 85%; max-width: 600px; transition: transform 0.1s;
+    }
+    .choice-btn:hover { background: var(--accent); color: #000; transform: translate(-2px, -2px); }
+
+    #title-screen {
+      background-image: url('title_screen.png');
+      background-size: cover; background-position: center; image-rendering: pixelated;
+      display: flex; justify-content: center; align-items: flex-end; padding-bottom: 60px;
+    }
+
+    #start-btn {
+      font-family: 'Press Start 2P'; font-size: 1.5rem; cursor: pointer; color: #fff;
+      text-shadow: 2px 2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, -2px -2px 0 #000;
+      animation: blink 1.5s step-end infinite;
+      background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 4px;
+    }
+    #start-btn:hover { color: var(--accent); background: rgba(0,0,0,0.7); }
+
+    /* スタッフロール画面 */
+    #credit-screen {
+      background: #000;
+      justify-content: center; align-items: center; overflow: hidden;
+    }
+    #credit-content {
+      position: absolute; top: 100%; width: 100%; text-align: center; padding-bottom: 50px;
+    }
+    .role { color: var(--accent); font-size: 0.9rem; margin-top: 30px; margin-bottom: 5px; font-family: 'Press Start 2P'; }
+    .staff { font-size: 1.2rem; margin-bottom: 20px; }
+    .end-msg { font-size: 2rem; margin-top: 60px; color: var(--accent); }
+    .click-skip { 
+        position: absolute; bottom: 10px; right: 10px; font-size: 0.8rem; color: #555; 
+        z-index: 10; animation: blink 2s infinite; 
+    }
+    .roll-animation { animation: credit-scroll 15s linear forwards; }
+    @keyframes credit-scroll { 0% { top: 100%; } 100% { top: -120%; } }
+
+    /* === コンボ表示 (修正後) === */
+    #combo-indicator {
+      position: absolute; top: 20px; right: 20px;
+      font-family: 'Press Start 2P'; 
+      font-size: 1.2rem; /* サイズを大きく */
+      color: #fff;       /* はっきり見えるように白 */
+      text-shadow: 2px 2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, -2px -2px 0 #000; /* 縁取り */
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* アニメーション */
+    @keyframes shake_char { 0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } 100% { transform: translateX(0); } }
+    @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+    .shake_screen { animation: shake_screen_kf 0.4s; }
+    @keyframes shake_screen_kf { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-10px, 10px); } 75% { transform: translate(10px, -10px); } }
+    .flash_red::after { content: ""; position: absolute; top:0; left:0; width:100%; height:100%; background: red; opacity: 0; animation: flash 0.3s; pointer-events: none; }
+    @keyframes flash { 0% { opacity: 0.5; } 100% { opacity: 0; } }
+  </style>
+</head>
+<body>
+
+<div id="screen-container">
+  <div id="title-screen" class="screen-layer active">
+    <div id="start-btn">PRESS START</div>
+  </div>
+
+  <div id="game-screen" class="screen-layer hidden">
+    <div id="combo-indicator">LOVE: <span id="combo-count">0</span>/5</div>
+    <div id="character-area">
+      <img id="char-img" src="" alt="character">
+    </div>
+    <div id="message-box">
+      <div id="name-label"></div>
+      <div id="text-content"></div>
+      <div class="next-indicator">▼</div>
+    </div>
+    <div id="choices-container"></div>
+  </div>
+
+  <div id="credit-screen" class="screen-layer hidden">
+      <div class="click-skip">CLICK TO SKIP</div>
+      <div id="credit-content">
+          <div class="role">TITLE</div>
+          <div class="staff">ときめき甲殻メモリアル</div>
+          <div class="role">CAST</div>
+          <div class="staff">蟹崎 カニ子</div>
+          <div class="staff">主人公 (You)</div>
+          <div class="role">SCENARIO & PROGRAM</div>
+          <div class="staff">Gemini</div>
+          <div class="role">GRAPHICS & SOUND</div>
+          <div class="staff">AI Generated Assets</div>
+          <div class="role">PRODUCED BY</div>
+          <div class="staff">KANI PRO.</div>
+          <div class="end-msg">THANK YOU FOR PLAYING!</div>
+      </div>
+  </div>
+</div>
+
+<audio id="bgm_daily" loop preload="auto" src="bgm_daily.mp3"></audio>
+<audio id="bgm_emotional" loop preload="auto" src="bgm_emotional.mp3"></audio>
+
+<script>
+(() => {
+  // ====== サウンド管理 ======
+  const audioEls = {
+      bgm_daily: document.getElementById('bgm_daily'),
+      bgm_emotional: document.getElementById('bgm_emotional')
+  };
+  const seFiles = {
+      select: "se_select.mp3",
+      bad: "se_bad.mp3"
+  };
+  let currentBgm = null;
+
+  function playBgm(bgmId) {
+      const newBgm = audioEls[bgmId];
+      if (!newBgm) return;
+      if (currentBgm === newBgm && !newBgm.paused) return; 
+
+      stopBgm();
+      currentBgm = newBgm;
+      currentBgm.volume = 0.4; 
+      currentBgm.currentTime = 0;
+      currentBgm.play().catch(e => console.log("BGM再生エラー:", e));
+  }
+
+  function stopBgm() {
+      if (currentBgm) {
+          currentBgm.pause();
+          currentBgm = null;
+      }
+  }
+
+  function playSe(seName) {
+      if (!seFiles[seName]) return;
+      const se = new Audio(seFiles[seName]);
+      se.volume = 0.6;
+      se.play().catch(e => console.log("SE再生エラー:", e));
+  }
+
+  // ====== シナリオデータ ======
+  const SCENARIO = {
+    "scene1_start": {
+      bgClass: "bg-school",
+      bgm: "bgm_daily", 
+      text: "（転校初日、慣れない校舎で迷ってしまった。もうすっかり夕暮れだ…）",
+      name: "主人公",
+      img: null, 
+      next: "scene1_impact"
+    },
+    "scene1_impact": {
+      text: "ドカッ！\n「うわっ！」",
+      name: "主人公",
+      effect: "shake_screen",
+      next: "scene1_meet"
+    },
+    "scene1_meet": {
+      text: "「きゃっ！ …いっ、痛い…」",
+      name: "???",
+      img: "kani_surprise.png", 
+      emotion: "shy_anim",
+      next: "scene1_monologue"
+    },
+    "scene1_monologue": {
+      text: "（女の子とぶつかってしまった。よく見ると彼女、頭に…カニのハサミがついてる！？）",
+      name: "主人公",
+      next: "scene1_angry"
+    },
+    "scene1_angry": {
+      text: "「ちょっとアンタ！ どこ見て歩いてんのよ！ アタシの自慢の甲羅に傷がついたらどうすんの！？」",
+      name: "蟹崎カニ子",
+      img: "kani_angry.png",
+      emotion: "angry_anim",
+      next: "q1_choice"
+    },
+    "q1_choice": {
+      choices: [
+        { label: "ごめん！大丈夫？", next: "q1_fail", correct: false },
+        { label: "そのハサミ、凄く立派だね！", next: "q1_success", correct: true },
+        { label: "美味しそうな匂いがする…", next: "q1_fail", correct: false }
+      ]
+    },
+    "q1_fail": {
+      text: "「フン、アタシ忙しいから。」\n（彼女は不機嫌そうだ…）",
+      name: "カニ子",
+      img: "kani_angry.png",
+      next: "scene2_start"
+    },
+    "q1_success": {
+      text: "「えっ…そ、そう？ 分かるの？ …ま、まあね。伊達に毎日磨いてないわよ」",
+      name: "カニ子",
+      img: "kani_shy.png",
+      emotion: "shy_anim",
+      next: "scene2_start"
+    },
+    // --- Scene 2 ---
+    "scene2_start": {
+      bgClass: "bg-rooftop",
+      bgm: "bgm_daily",
+      text: "（翌日の昼休み。屋上に来てみると、彼女が一人でいた。元気がなさそうだ）",
+      name: "主人公",
+      img: "kani_sad.png",
+      next: "scene2_talk"
+    },
+    "scene2_talk": {
+      text: "「…別に。…ううん。ちょっと、日差しが強すぎて…」",
+      name: "カニ子",
+      img: "kani_sad.png", 
+      next: "q2_choice"
+    },
+    "q2_choice": {
+      choices: [
+        { label: "スポーツドリンク飲む？", next: "q2_fail", correct: false },
+        { label: "（無言で霧吹きをかける）", next: "q2_success", correct: true },
+        { label: "日傘をさしてあげる", next: "q2_fail", correct: false }
+      ]
+    },
+    "q2_fail": {
+      text: "「そんなのいらないわよ…はぁ、乾く…」",
+      name: "カニ子",
+      img: "kani_sad.png", 
+      next: "scene_search_start"
+    },
+    "q2_success": {
+      text: "シュッシュッ…\n「！？ …な、何よイキナリ！ ……でも、ちょっと…潤ったかも。…ありがと」",
+      name: "カニ子",
+      img: "kani_shy.png",
+      emotion: "shy_anim",
+      next: "scene_search_start"
+    },
+    // --- Scene 3 (会話) ---
+    "scene_search_start": {
+      bgClass: "bg-corridor",
+      bgm: "bgm_daily",
+      text: "（放課後。彼女の姿を探して廊下を歩いていると、前方に彼女の姿を見つけた）\n「あ、カニ子さん！」",
+      name: "主人公",
+      img: null,
+      next: "scene_hallway_talk1"
+    },
+    "scene_hallway_talk1": {
+      text: "「…！ なによ、またアンタ？」\n（声をかけると、彼女はビクッとして振り返った。少し警戒しているようだ）",
+      name: "カニ子",
+      img: "kani_normal.png",
+      emotion: "shy_anim", 
+      next: "scene_hallway_talk2"
+    },
+    "scene_hallway_talk2": {
+      text: "「いや、昼休み、元気なさそうだったから気になって…」\n「…別に。ほっといてよ。」\n（そう言って立ち去ろうとするが、足取りが少しふらついている）",
+      name: "カニ子&主人公",
+      img: "kani_sad.png",
+      next: "q3_choice" 
+    },
+    // --- Q3 ---
+    "q3_choice": {
+      choices: [
+        { label: "「顔色が悪いよ、保健室行こう」", next: "q3_talk_fail", correct: false },
+        { label: "「…何か、僕にできることはない？」", next: "q3_talk_success", correct: true },
+        { label: "黙って後をつける", next: "q3_talk_stalk", correct: false }
+      ]
+    },
+    "q3_talk_fail": {
+      text: "「うるさいなぁ…。平気だって言ってるでしょ。ついてこないでよ！」\n（強く拒絶されてしまった…彼女は走り去ってしまった）",
+      name: "カニ子",
+      img: "kani_angry.png",
+      emotion: "angry_anim",
+      next: "scene_hallway_to_old_school_fail"
+    },
+    "q3_talk_stalk": {
+      text: "（…心配だ。バレないようにそっと後をつけよう）\n……\n（見失ってしまった…多分、あっちの方角だけど…）",
+      name: "主人公",
+      img: null,
+      next: "scene_hallway_to_old_school_fail"
+    },
+    "q3_talk_success": {
+      text: "「…え？」\n（予想外の言葉だったのか、彼女は少し足を止めた）\n「…アンタに、できることなんて…」",
+      name: "カニ子",
+      img: "kani_shy.png",
+      next: "q3_talk_success2"
+    },
+    "q3_talk_success2": {
+      text: "「…はぁ。いいわよ、勝手にして。…アタシは、静かなところに行きたいだけだから」\n（彼女はそう呟くと、旧校舎の方へと歩き出した。ついていっても良さそうだ）",
+      name: "カニ子",
+      img: "kani_sad.png",
+      next: "scene3_start_following" 
+    },
+    "scene_hallway_to_old_school_fail": {
+      text: "（彼女が向かったのは、おそらく人気のない旧校舎の方だ。遅れてしまったけど、行ってみよう）",
+      name: "主人公",
+      img: null,
+      next: "scene3_start"
+    },
+    // --- Scene 4 (旧校舎) ---
+    "scene3_start_following": {
+      bgClass: "bg-classroom",
+      bgm: "bgm_emotional", 
+      text: "（彼女の後をついていき、旧校舎の教室の前まで来た。彼女は先に中に入り、ドアを閉めた。中から物音がする…）",
+      name: "主人公",
+      img: null,
+      next: "q4_choice"
+    },
+    "scene3_start": {
+      bgClass: "bg-classroom",
+      bgm: "bgm_emotional", 
+      text: "（なんとか見失わずに済んだ。彼女が入っていった旧校舎の教室の前に着いた。中からガサゴソと物音がする…）",
+      name: "主人公",
+      img: null,
+      next: "q4_choice"
+    },
+    "q4_choice": {
+      choices: [
+        { label: "「カニ子さん、いるの？」とノック", next: "q4_success", correct: true },
+        { label: "勢いよくドアを開ける！", next: "q4_fail_barge", correct: false },
+        { label: "隙間から中を覗く", next: "q4_fail_peek", correct: false }
+      ]
+    },
+    "q4_fail_barge": {
+      text: "バンッ！\n「キャアアア！！ 見ないでよバカ！！」",
+      name: "カニ子",
+      img: "kani_angry.png",
+      effect: "shake_screen",
+      next: "scene3_talk_entry"
+    },
+    "q4_fail_peek": {
+      text: "（…目が合った気がする）\n「今…見たわね…？」",
+      name: "カニ子",
+      img: "kani_angry.png",
+      effect: "flash_red",
+      next: "scene3_talk_entry"
+    },
+    "q4_success": {
+      text: "コンコン。\n「…っ！？ 誰…？ 入ってこないで！」",
+      name: "カニ子",
+      next: "scene3_talk_entry"
+    },
+    "scene3_talk_entry": {
+      text: "（教室の隅で、彼女が震えている）",
+      name: "主人公",
+      img: "kani_sad.png",
+      next: "scene3_talk2"
+    },
+    "scene3_talk2": {
+      text: "「違うの…今、アタシ…『脱皮』が近くて…。甲羅が浮いてきて…すごく、情緒不安定なの…」",
+      name: "カニ子",
+      img: "kani_sad.png",
+      emotion: "angry_anim",
+      next: "scene3_talk3"
+    },
+    "scene3_talk3": {
+      text: "「お願い、あっち行って！ 今のアタシ、誰にも見られたくないの…！」",
+      name: "カニ子",
+      img: "kani_normal.png",
+      next: "q5_choice"
+    },
+    "q5_choice": {
+      choices: [
+        { label: "「大丈夫だよ！」と抱きしめる", next: "scene3_hug_reject", correct: false },
+        { label: "「わかった。外で見張ってるよ」", next: "check_judgment", correct: true }
+      ]
+    },
+    "scene3_hug_reject": {
+      text: "「ひゃあっ！？ …や、やめて！ さわらないでよ！！」\n（彼女はパニックになり、僕を強く突き飛ばした）",
+      name: "カニ子",
+      img: "kani_angry.png",
+      emotion: "angry_anim",
+      effect: "shake_screen",
+      next: "check_judgment"
+    },
+
+    // ★運命判定ポイント★
+    "check_judgment": { }, 
+
+    // --- BAD END ---
+    "bad_end_3": {
+      text: "…数日後。彼女が学校に来ることは二度となかった。\n風の噂で、近くの漁港で「珍しいカニ」が水揚げされたと聞いた。",
+      name: "主人公",
+      img: null, 
+      next: "bad_end_4"
+    },
+    "bad_end_4": {
+      bgm: "bgm_emotional",
+      text: "その日の晩御飯に出てきたカニ鍋は、なぜだか、とても悲しい味がした。\n\n【 BAD END - 極上の出汁 - 】",
+      name: "",
+      next: "ending_credits"
+    },
+
+    // --- GOOD END ---
+    "good_end_start": {
+      text: "僕は扉の外で、じっと待ち続けた。\n数時間後、教室の中から物音がした。",
+      name: "主人公",
+      img: null,
+      next: "good_end_2"
+    },
+    "good_end_2": {
+      bgm: "bgm_daily", 
+      text: "「…もう、入っていいわよ」\n教室に入ると、そこには少し雰囲気が変わった彼女がいた。",
+      name: "カニ子",
+      img: "kani_molted.png",
+      emotion: "molted_anim",
+      next: "good_end_3"
+    },
+    "good_end_3": {
+      text: "「…アンタ、本当にバカ正直に待ってたのね。\n正直、今までの行動を見てて…アンタなら信じられるかもって、思ってた」",
+      name: "カニ子",
+      img: "kani_molted.png", 
+      next: "good_end_4"
+    },
+    "good_end_4": {
+      text: "「………フン。アンタの前でだけは、この新しい甲羅…少しだけ、柔らかくしといてあげてもいいわよ」",
+      name: "カニ子",
+      img: "kani_molted.png",
+      emotion: "shy_anim",
+      next: "good_end_5"
+    },
+    "good_end_5": {
+      text: "僕たちの奇妙な関係は、脱皮したばかりの彼女の心のように、ここから新しく始まっていくのだろう。\n\n【 GOOD END - 硬い甲羅と柔らかい心 - 】",
+      name: "主人公",
+      next: "ending_credits"
+    },
+
+    "ending_credits": { special: "credits" },
+    "title_return": { text: "", name: "", next: "__TITLE__" }
+  };
+
+
+  // ====== エンジン部分 ======
+  const els = {
+    screenContainer: document.getElementById('screen-container'),
+    titleScreen: document.getElementById('title-screen'),
+    gameScreen: document.getElementById('game-screen'),
+    startBtn: document.getElementById('start-btn'),
+    charArea: document.getElementById('character-area'),
+    charImg: document.getElementById('char-img'),
+    messageBox: document.getElementById('message-box'),
+    nameLabel: document.getElementById('name-label'),
+    textContent: document.getElementById('text-content'),
+    nextIndicator: document.querySelector('.next-indicator'),
+    choicesContainer: document.getElementById('choices-container'),
+    comboCount: document.getElementById('combo-count'),
+    creditScreen: document.getElementById('credit-screen'),
+    creditContent: document.getElementById('credit-content')
+  };
+
+  let currentSceneId = null;
+  let isTyping = false;
+  let typeTimer;
+  let fullText = "";
+  let combo = 0;
+  let creditTimer = null;
+
+  function init() {
+    els.startBtn.addEventListener('click', startGame);
+    els.creditScreen.addEventListener('click', () => {
+        if(els.creditScreen.classList.contains('active')) returnToTitle();
+    });
+  }
+
+  function startGame() {
+    playSe('select'); 
+
+    combo = 0;
+    updateCombo();
+    els.titleScreen.classList.remove('active');
+    els.titleScreen.classList.add('hidden');
+    els.gameScreen.classList.remove('hidden');
+    els.gameScreen.classList.add('active');
+    els.creditScreen.classList.add('hidden');
+    els.creditScreen.classList.remove('active');
+    loadScene("scene1_start");
+  }
+
+  function returnToTitle() {
+    stopBgm(); 
+    clearTimeout(creditTimer);
+    els.gameScreen.classList.remove('active');
+    els.gameScreen.classList.add('hidden');
+    els.creditScreen.classList.remove('active');
+    els.creditScreen.classList.add('hidden');
+    els.creditContent.classList.remove('roll-animation');
+    els.titleScreen.classList.remove('hidden');
+    els.titleScreen.classList.add('active');
+    els.gameScreen.className = "screen-layer hidden"; 
+  }
+
+  function updateCombo() {
+      els.comboCount.textContent = combo;
+  }
+
+  function loadScene(id) {
+    if (id === "__TITLE__") { returnToTitle(); return; }
+    
+    // 運命判定
+    if (id === "check_judgment") {
+        if (combo >= 5) {
+            loadScene("good_end_start");
+        } else {
+            loadScene("bad_end_3");
+        }
+        return;
+    }
+
+    currentSceneId = id;
+    const scene = SCENARIO[id];
+
+    if (scene.special === "credits") { playCredits(); return; }
+    if (scene.choices) { showChoices(scene.choices); return; }
+
+    if (scene.bgm) { playBgm(scene.bgm); }
+
+    els.screenContainer.classList.remove('shake_screen');
+    els.gameScreen.classList.remove('flash_red');
+    if (scene.bgClass) els.gameScreen.className = "screen-layer active " + scene.bgClass;
+    if (scene.effect === "shake_screen") {
+      els.screenContainer.classList.add('shake_screen');
+      setTimeout(() => els.screenContainer.classList.remove('shake_screen'), 500);
+    } else if (scene.effect === "flash_red") {
+      els.gameScreen.classList.add('flash_red');
+    }
+    
+    updateCharacter(scene);
+    els.nameLabel.textContent = scene.name || "";
+    els.nextIndicator.style.display = 'none';
+    typeText(scene.text);
+  }
+
+  function playCredits() {
+      playBgm('bgm_daily');
+
+      els.gameScreen.classList.remove('active');
+      els.gameScreen.classList.add('hidden');
+      els.creditScreen.classList.remove('hidden');
+      els.creditScreen.classList.add('active');
+      els.creditContent.classList.remove('roll-animation');
+      void els.creditContent.offsetWidth;
+      els.creditContent.classList.add('roll-animation');
+      creditTimer = setTimeout(returnToTitle, 17000);
+  }
+
+  function updateCharacter(scene) {
+    if (scene.img === null) {
+        els.charImg.style.display = 'none'; 
+        els.charImg.src = "";
+    } else if (scene.img) {
+        els.charImg.style.display = 'block'; 
+        els.charImg.src = scene.img;
+        els.charImg.className = ""; 
+        if(scene.emotion) els.charImg.classList.add(scene.emotion);
+    }
+  }
+
+  function typeText(text) {
+    fullText = text; els.textContent.textContent = ""; isTyping = true; let i = 0;
+    clearInterval(typeTimer);
+    typeTimer = setInterval(() => {
+      els.textContent.textContent += text.charAt(i); i++;
+      if (i >= text.length) finishTyping();
+    }, 40);
+  }
+
+  function finishTyping() {
+    clearInterval(typeTimer); els.textContent.textContent = fullText; isTyping = false;
+    els.nextIndicator.style.display = 'block';
+  }
+
+  els.messageBox.addEventListener('click', () => {
+    if (isTyping) finishTyping(); else {
+      const scene = SCENARIO[currentSceneId];
+      if (scene && scene.next && !scene.choices) loadScene(scene.next);
+    }
+  });
+
+  function showChoices(choices) {
+    els.choicesContainer.innerHTML = ""; els.choicesContainer.style.display = "flex";
+    choices.forEach(choice => {
+      const btn = document.createElement("button"); btn.className = "choice-btn"; btn.textContent = choice.label;
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        if (choice.correct) {
+            combo++;
+            playSe('select'); 
+        } else {
+            combo = 0;
+            playSe('bad'); 
+        }
+        updateCombo(); els.choicesContainer.style.display = "none"; loadScene(choice.next);
+      };
+      els.choicesContainer.appendChild(btn);
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
